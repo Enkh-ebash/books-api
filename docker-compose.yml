@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: books-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-books}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-books}
+      POSTGRES_DB: ${DB_NAME:-books}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # схема и тестовые данные создаются при первом запуске
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-books} -d ${DB_NAME:-books}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: .            # multi-stage Dockerfile из корня проекта
+    container_name: books-api
+    depends_on:
+      db:
+        condition: service_healthy   # API стартует, когда БД готова принимать запросы
+    environment:
+      PORT: 3000
+      DB_HOST: db                    # имя сервиса в сети compose
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-books}
+      DB_PASSWORD: ${DB_PASSWORD:-books}
+      DB_NAME: ${DB_NAME:-books}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  db_data:

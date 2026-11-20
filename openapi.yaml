@@ -1,0 +1,157 @@
+openapi: 3.0.3
+info:
+  title: Books API
+  description: Учебный REST-микросервис «Библиотека» (авторы и книги).
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /health:
+    get:
+      summary: Проверка работоспособности сервиса и БД
+      responses:
+        "200": { description: Сервис и БД работают }
+        "503": { description: БД недоступна }
+  /api/authors:
+    get:
+      summary: Список авторов
+      responses:
+        "200":
+          description: Массив авторов
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Author" }
+    post:
+      summary: Создать автора
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorInput" }
+      responses:
+        "201":
+          description: Автор создан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Author" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/books:
+    get:
+      summary: Список книг (поиск по названию, фильтр по автору, пагинация)
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Часть названия }
+        - { name: author_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Массив книг
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/Error" }
+    post:
+      summary: Создать книгу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookInput" }
+      responses:
+        "201":
+          description: Книга создана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/books/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      summary: Получить книгу по id
+      responses:
+        "200":
+          description: Книга
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      summary: Полностью обновить книгу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookInput" }
+      responses:
+        "200":
+          description: Обновлённая книга
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Удалить книгу
+      responses:
+        "204": { description: Книга удалена }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    AuthorInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, example: Николай Гоголь }
+        country: { type: string, maxLength: 60, example: Россия }
+    Author:
+      allOf:
+        - $ref: "#/components/schemas/AuthorInput"
+        - type: object
+          properties:
+            id: { type: integer }
+            created_at: { type: string, format: date-time }
+    BookInput:
+      type: object
+      required: [title, author_id]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Мёртвые души }
+        author_id: { type: integer, minimum: 1, example: 1 }
+        year: { type: integer, minimum: 0, maximum: 2100, example: 1842 }
+        isbn: { type: string, example: 978-5-17-090000-9 }
+    Book:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        year: { type: integer, nullable: true }
+        isbn: { type: string, nullable: true }
+        author_id: { type: integer }
+        author_name: { type: string }
+        created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: BAD_REQUEST }
+            message: { type: string }
+            details:
+              type: array
+              items: { type: string }
